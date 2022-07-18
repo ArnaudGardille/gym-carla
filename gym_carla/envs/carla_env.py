@@ -44,7 +44,7 @@ class CarlaEnv(gym.Env):
     self.out_lane_thres = params['out_lane_thres']
     self.desired_speed = params['desired_speed']
     self.max_ego_spawn_times = params['max_ego_spawn_times']
-    self.display_route = params['display_route']
+    self.display_route = False #params['display_route']
     if 'pixor' in params.keys():
       self.pixor = params['pixor']
       self.pixor_size = params['pixor_size']
@@ -251,8 +251,9 @@ class CarlaEnv(gym.Env):
     self.routeplanner = RoutePlanner(self.ego, self.max_waypt)
     self.waypoints, _, self.vehicle_front = self.routeplanner.run_step()
 
-    # Set ego information for render
-    self.birdeye_render.set_hero(self.ego, self.ego.id)
+    if self.enable_pygame:
+      # Set ego information for render
+      self.birdeye_render.set_hero(self.ego, self.ego.id)
 
     return self._get_obs()
   
@@ -511,7 +512,7 @@ class CarlaEnv(gym.Env):
     if self.display_route:
       wayptimg = (birdeye[:,:,0] <= 10) * (birdeye[:,:,1] <= 10) * (birdeye[:,:,2] >= 240)
     else:
-      wayptimg = birdeye[:,:,0] < 0  # Equal to a zero matrix
+      wayptimg = np.zeros((self.display_size, self.display_size)) #birdeye[:,:,0] < 0  # Equal to a zero matrix
     wayptimg = np.expand_dims(wayptimg, axis=2)
     wayptimg = np.fliplr(np.rot90(wayptimg, 3))
 
