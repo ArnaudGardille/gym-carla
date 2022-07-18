@@ -522,14 +522,15 @@ class CarlaEnv(gym.Env):
     lidar = np.rot90(lidar, 1)
     lidar = lidar * 255
 
-    # Display lidar image
-    lidar_surface = rgb_to_display_surface(lidar, self.display_size)
-    self.display.blit(lidar_surface, (self.display_size, 0))
+    if self.enable_pygame:
+      # Display lidar image
+      lidar_surface = rgb_to_display_surface(lidar, self.display_size)
+      self.display.blit(lidar_surface, (self.display_size, 0))
 
-    ## Display camera image
-    camera = resize(self.camera_img, (self.obs_size, self.obs_size)) * 255
-    camera_surface = rgb_to_display_surface(camera, self.display_size)
-    self.display.blit(camera_surface, (self.display_size * 2, 0))
+      ## Display camera image
+      camera = resize(self.camera_img, (self.obs_size, self.obs_size)) * 255
+      camera_surface = rgb_to_display_surface(camera, self.display_size)
+      self.display.blit(camera_surface, (self.display_size * 2, 0))
 
     if self.enable_pygame:
       # Display on pygame
