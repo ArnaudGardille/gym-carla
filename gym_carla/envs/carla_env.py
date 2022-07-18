@@ -459,36 +459,36 @@ class CarlaEnv(gym.Env):
 
   def _get_obs(self):
     """Get the observations."""
-    if self.enable_pygame:
-      ## Birdeye rendering
-      self.birdeye_render.vehicle_polygons = self.vehicle_polygons
-      self.birdeye_render.walker_polygons = self.walker_polygons
-      self.birdeye_render.waypoints = self.waypoints
+    ## Birdeye rendering
+    self.birdeye_render.vehicle_polygons = self.vehicle_polygons
+    self.birdeye_render.walker_polygons = self.walker_polygons
+    self.birdeye_render.waypoints = self.waypoints
 
-      # birdeye view with roadmap and actors
-      birdeye_render_types = ['roadmap', 'actors']
+    # birdeye view with roadmap and actors
+    birdeye_render_types = ['roadmap', 'actors']
+    if self.display_route:
+      birdeye_render_types.append('waypoints')
+    self.birdeye_render.render(self.display, birdeye_render_types)
+    birdeye = pygame.surfarray.array3d(self.display)
+    birdeye = birdeye[0:self.display_size, :, :]
+    birdeye = display_to_rgb(birdeye, self.obs_size)
+
+    # Roadmap
+    if self.pixor:
+      roadmap_render_types = ['roadmap']
       if self.display_route:
-        birdeye_render_types.append('waypoints')
-      self.birdeye_render.render(self.display, birdeye_render_types)
-      birdeye = pygame.surfarray.array3d(self.display)
-      birdeye = birdeye[0:self.display_size, :, :]
-      birdeye = display_to_rgb(birdeye, self.obs_size)
+        roadmap_render_types.append('waypoints')
+      self.birdeye_render.render(self.display, roadmap_render_types)
+      roadmap = pygame.surfarray.array3d(self.display)
+      roadmap = roadmap[0:self.display_size, :, :]
+      roadmap = display_to_rgb(roadmap, self.obs_size)
+      # Add ego vehicle
+      for i in range(self.obs_size):
+        for j in range(self.obs_size):
+          if abs(birdeye[i, j, 0] - 255)<20 and abs(birdeye[i, j, 1] - 0)<20 and abs(birdeye[i, j, 0] - 255)<20:
+            roadmap[i, j, :] = birdeye[i, j, :]
 
-      # Roadmap
-      if self.pixor:
-        roadmap_render_types = ['roadmap']
-        if self.display_route:
-          roadmap_render_types.append('waypoints')
-        self.birdeye_render.render(self.display, roadmap_render_types)
-        roadmap = pygame.surfarray.array3d(self.display)
-        roadmap = roadmap[0:self.display_size, :, :]
-        roadmap = display_to_rgb(roadmap, self.obs_size)
-        # Add ego vehicle
-        for i in range(self.obs_size):
-          for j in range(self.obs_size):
-            if abs(birdeye[i, j, 0] - 255)<20 and abs(birdeye[i, j, 1] - 0)<20 and abs(birdeye[i, j, 0] - 255)<20:
-              roadmap[i, j, :] = birdeye[i, j, :]
-
+    if self.enable_pygame:
       # Display birdeye image
       birdeye_surface = rgb_to_display_surface(birdeye, self.display_size)
       self.display.blit(birdeye_surface, (0, 0))
