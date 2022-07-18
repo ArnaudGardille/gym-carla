@@ -27,12 +27,23 @@ $ pip install -e .
 $ export PYTHONPATH=$PYTHONPATH:$YourFolder$/gym-carla/carla-0.9.6-py3.5-linux-x86_64.egg
 ```
 
+If it isn't sufficient, write it at the end of your .bashrc file:
+```
+$ cd
+$ sudo nano .bashrc
+$ source .bashrc
+```
+
+
 ## Usage
 1. Enter the CARLA root folder and launch the CARLA server by:
 ```
-$ docker run -p 2000-2002:2000-2002 --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=0 carlasim/carla:0.9.6 /bin/bash CarlaUE4.sh -opengl -carla-port=2000
+$ sudo docker run -p 2000-2002:2000-2002 --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=0 carlasim/carla:0.9.6 /bin/bash CarlaUE4.sh -opengl -carla-port=2000
 ```
-You can use ```Alt+F1``` to get back your mouse control.
+if it crashes, just run this command in another terminal:
+```
+$ sudo service docker restart
+```
 
 Or you can run in non-display mode by:
 ```

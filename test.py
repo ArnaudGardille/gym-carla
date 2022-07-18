@@ -8,12 +8,37 @@
 import gym
 import gym_carla
 import carla
+from tqdm import trange
+#from gym_carla.envs.misc import *
+from gym import spaces
+import numpy as np
+import math
+from agents.navigation.basic_agent import BasicAgent  # pylint: disable=import-error
+
+
+def compute_magnitude_angle(target_location, current_location, orientation):
+  """
+  Compute relative angle and distance between a target_location and a current_location
+
+  :param target_location: location of the target object
+  :param current_location: location of the reference object
+  :param orientation: orientation of the reference object
+  :return: a tuple composed by the distance to the object and the angle between both objects
+  """
+  target_vector = np.array([target_location.x - current_location.x, target_location.y - current_location.y])
+  norm_target = np.linalg.norm(target_vector)
+
+  forward_vector = np.array([math.cos(math.radians(orientation)), math.sin(math.radians(orientation))])
+  d_angle = math.degrees(math.acos(np.dot(forward_vector, target_vector) / norm_target))
+  print(np.dot(forward_vector, target_vector))
+  return (norm_target, forward_vector, d_angle)
+
 
 def main():
   # parameters for the gym_carla environment
   params = {
-    'number_of_vehicles': 100,
-    'number_of_walkers': 0,
+    'number_of_vehicles': 0,#100,
+    'number_of_walkers': 100,
     'display_size': 256,  # screen size of bird-eye render
     'max_past_step': 1,  # the number of past steps to draw
     'dt': 0.1,  # time interval between two frames
@@ -37,16 +62,42 @@ def main():
     'display_route': True,  # whether to render the desired route
     'pixor_size': 64,  # size of the pixor labels
     'pixor': False,  # whether to output PIXOR observation
+    'auto_steer':True
   }
+
+
+
+  class OnlyAcceleration(gym.ActionWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        if self.discrete:
+          self.action_space = spaces.Discrete(self.n_acc) # self.n_steer
+        else:
+          self.action_space = spaces.Box(np.array(params['continuous_accel_range'][0]), np.array(params['continuous_accel_range'][1]), dtype=np.float32)
+
+    
+    def action(self, act):
+
+      if self.discrete:
+          return act
+      else:
+          return [act, 0.0]
+
+      return self.disc_to_cont[act]
+      
 
   # Set gym-carla environment
   env = gym.make('carla-v0', params=params)
+  env = OnlyAcceleration(env)
   obs = env.reset()
+  #env.ego.set_autopilot(True)
 
-  while True:
-    action = [2.0, 0.0]
+  pbar = trange(1000)
+  for i in range(1000):
+    action = 2.0 #[2.0, 0.0]
     obs,r,done,info = env.step(action)
-
+    #pbar.set_description('Reward: ' + str(r))
+    #print(r)
     if done:
       obs = env.reset()
 
