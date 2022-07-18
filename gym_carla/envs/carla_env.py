@@ -72,7 +72,7 @@ class CarlaEnv(gym.Env):
     observation_space_dict = {
       'camera': spaces.Box(low=0, high=255, shape=(self.obs_size, self.obs_size, 3), dtype=np.uint8),
       'lidar': spaces.Box(low=0, high=255, shape=(self.obs_size, self.obs_size, 3), dtype=np.uint8),
-      'birdeye': spaces.Box(low=0, high=255, shape=(self.obs_size, self.obs_size, 3), dtype=np.uint8),
+      #'birdeye': spaces.Box(low=0, high=255, shape=(self.obs_size, self.obs_size, 3), dtype=np.uint8),
       'state': spaces.Box(np.array([-2, -1, -5, 0]), np.array([2, 1, 30, 1]), dtype=np.float32)
       }
     if self.pixor:
@@ -588,7 +588,7 @@ class CarlaEnv(gym.Env):
     obs = {
       'camera':camera.astype(np.uint8),
       'lidar':lidar.astype(np.uint8),
-      'birdeye':birdeye.astype(np.uint8),
+      #'birdeye':birdeye.astype(np.uint8),
       'state': state,
     }
 
