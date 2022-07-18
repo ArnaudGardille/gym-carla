@@ -22,6 +22,7 @@ import carla
 from gym_carla.envs.render import BirdeyeRender
 from gym_carla.envs.route_planner import RoutePlanner
 from gym_carla.envs.misc import *
+from agents.navigation.basic_agent import BasicAgent  # pylint: disable=import-error
 
 
 class CarlaEnv(gym.Env):
@@ -51,7 +52,9 @@ class CarlaEnv(gym.Env):
     else:
       self.pixor = False
 
-    self.enable_pygame = False
+    self.auto_steer = params['auto_steer']
+
+    self.enable_pygame = True
     # Destination
     if params['task_mode'] == 'roundabout':
       self.dests = [[4.46, -61.46, 0], [-49.53, -2.89, 0], [-6.48, 55.47, 0], [35.96, 3.33, 0]]
@@ -143,6 +146,9 @@ class CarlaEnv(gym.Env):
       # Initialize the renderer
       self._init_renderer()
 
+    if self.auto_steer:
+       self.perfect_agent = None
+
     # Get pixel grid points
     if self.pixor:
       x, y = np.meshgrid(np.arange(self.pixor_size), np.arange(self.pixor_size)) # make a canvas with coordinates
@@ -213,6 +219,9 @@ class CarlaEnv(gym.Env):
         ego_spawn_times += 1
         time.sleep(0.1)
 
+    if self.auto_steer:
+      self.perfect_agent = BasicAgent(self.ego)
+
     # Add collision sensor
     self.collision_sensor = self.world.spawn_actor(self.collision_bp, carla.Transform(), attach_to=self.ego)
     self.collision_sensor.listen(lambda event: get_collision_hist(event))
@@ -273,6 +282,15 @@ class CarlaEnv(gym.Env):
     else:
       throttle = 0
       brake = np.clip(-acc/8,0,1)
+
+    if self.auto_steer:
+      next_waypoint = self.waypoints[5]
+      #print('next_waypoint', next_waypoint)
+      self.perfect_agent.set_destination(next_waypoint)
+      control = self.perfect_agent.run_step()
+      steer = - control.steer
+      brake = np.clip(/8,0,1)
+      #print('control: ', control)
 
     # Apply control
     act = carla.VehicleControl(throttle=float(throttle), steer=float(-steer), brake=float(brake))
@@ -537,6 +555,19 @@ class CarlaEnv(gym.Env):
       # Display on pygame
       pygame.display.flip()
 
+      for event in pygame.event.get() :
+  
+        # if event object type is QUIT
+        # then quitting the pygame
+        # and program both.
+        if event.type == pygame.QUIT :
+
+          # deactivates the pygame library
+          pygame.quit()
+
+          # quit the program.
+          quit()
+
     # State observation
     ego_trans = self.ego.get_transform()
     ego_x = ego_trans.location.x
@@ -601,6 +632,68 @@ class CarlaEnv(gym.Env):
       })
 
     return obs
+
+  def set_ego_bluepprint(self, filter):
+    self.ego_bp = self._create_vehicle_bluepprint(filter, color='0,0,0')
+
+  def _get_reward_emergency_breaking(self):
+    """Calculate the step reward in the emergency bearking scenario."""
+    # reward for speed tracking
+    v = self.ego.get_velocity()
+    speed = np.sqrt(v.x**2 + v.y**2)
+    
+    r_speed = -abs(speed)
+    if self.hazard_distance > 10.0:
+      r_speed = 2 - abs(speed - self.desired_speed)
+    else:
+      r_speed = - abs(speed)
+    
+    
+    # reward for collision
+    r_collision = 0
+    if self.has_collided_vehicle: #len(self.collision_hist) > 0:
+      r_collision = - (speed + 1.0) #1
+
+    # reward for steering:
+    r_steer = -self.ego.get_control().steer**2
+
+    # reward for out of lane
+    ego_x, ego_y = get_pos(self.ego)
+    dis, w = get_lane_dis(self.waypoints, ego_x, ego_y)
+    r_out = 0
+    if abs(dis) > self.out_lane_thres:
+      r_out =  -1
+
+    # longitudinal speed
+    lspeed = np.array([v.x, v.y])
+    lspeed_lon = np.dot(lspeed, w)
+
+    # cost for too fast
+    r_fast = 0
+    if lspeed_lon > self.desired_speed:
+      r_fast = -1
+
+    # cost for not moving 
+    r_sleeping = 0.0
+    if not self.vehicle_front and abs(speed) < 0.1:
+      r_sleeping = -50
+      #- self.steps_of_inactivity**2 
+      if r_sleeping != 0 and self.verbose:
+        print('r_sleeping: ', r_sleeping)
+
+    # cost for too near to obstacle
+    r_proximity = 0.0
+    if self.hazard_distance < 5.0:
+      r_proximity = self.hazard_distance - 5.0
+      if r_proximity != 0 and self.verbose:
+        print('proximity: ', r_proximity)
+
+    # cost for lateral acceleration
+    r_lat = - abs(self.ego.get_control().steer) * lspeed_lon**2
+
+    r = 200.0*r_collision + 10.0*r_speed + 10.0*r_proximity + 1.0*r_fast + 1.0*r_sleeping
+
+    return r
 
   def _get_reward(self):
     """Calculate the step reward."""
