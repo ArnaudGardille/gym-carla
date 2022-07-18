@@ -7,7 +7,7 @@ An [OpenAI gym third party environment](https://github.com/openai/gym/blob/maste
 ## Installation
 1. Setup conda environment
 ```
-$ conda create -n env_name python=3.6
+$ conda create -n gym_carla_env python=3.6
 $ conda activate env_name
 ```
 
@@ -24,13 +24,13 @@ $ pip install -e .
 
 4. Download [CARLA_0.9.6](https://github.com/carla-simulator/carla/releases/tag/0.9.6), extract it to some folder, and add CARLA to ```PYTHONPATH``` environment variable:
 ```
-$ export PYTHONPATH=$PYTHONPATH:$YourFolder$/CARLA_0.9.6/PythonAPI/carla/dist/carla-0.9.6-py3.5-linux-x86_64.egg
+$ export PYTHONPATH=$PYTHONPATH:$YourFolder$/gym-carla/carla-0.9.6-py3.5-linux-x86_64.egg
 ```
 
 ## Usage
 1. Enter the CARLA root folder and launch the CARLA server by:
 ```
-$ ./CarlaUE4.sh -windowed -carla-port=2000
+$ docker run -p 2000-2002:2000-2002 --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=0 carlasim/carla:0.9.6 /bin/bash CarlaUE4.sh -opengl -carla-port=2000
 ```
 You can use ```Alt+F1``` to get back your mouse control.
 
