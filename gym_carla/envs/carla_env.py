@@ -146,9 +146,6 @@ class CarlaEnv(gym.Env):
       # Initialize the renderer
       self._init_renderer()
 
-    if self.auto_steer:
-       self.perfect_agent = None
-
     # Get pixel grid points
     if self.pixor:
       x, y = np.meshgrid(np.arange(self.pixor_size), np.arange(self.pixor_size)) # make a canvas with coordinates
@@ -219,8 +216,6 @@ class CarlaEnv(gym.Env):
         ego_spawn_times += 1
         time.sleep(0.1)
 
-    if self.auto_steer:
-      self.perfect_agent = BasicAgent(self.ego)
 
     # Add collision sensor
     self.collision_sensor = self.world.spawn_actor(self.collision_bp, carla.Transform(), attach_to=self.ego)
@@ -282,15 +277,6 @@ class CarlaEnv(gym.Env):
     else:
       throttle = 0
       brake = np.clip(-acc/8,0,1)
-
-    if self.auto_steer:
-      next_waypoint = self.waypoints[5]
-      #print('next_waypoint', next_waypoint)
-      self.perfect_agent.set_destination(next_waypoint)
-      control = self.perfect_agent.run_step()
-      steer = - control.steer
-      brake = np.clip(/8,0,1)
-      #print('control: ', control)
 
     # Apply control
     act = carla.VehicleControl(throttle=float(throttle), steer=float(-steer), brake=float(brake))

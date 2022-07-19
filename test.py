@@ -15,8 +15,9 @@ import numpy as np
 import math
 from agents.navigation.basic_agent import BasicAgent  # pylint: disable=import-error
 
+import time
 
-def compute_magnitude_angle(target_location, current_location, orientation):
+def compute_magnitude_angle(waypoint, current_location, orientation):
   """
   Compute relative angle and distance between a target_location and a current_location
 
@@ -25,12 +26,19 @@ def compute_magnitude_angle(target_location, current_location, orientation):
   :param orientation: orientation of the reference object
   :return: a tuple composed by the distance to the object and the angle between both objects
   """
-  target_vector = np.array([target_location.x - current_location.x, target_location.y - current_location.y])
+  target_vector = np.array([waypoint[0] - current_location.x, waypoint[1] - current_location.y])
   norm_target = np.linalg.norm(target_vector)
 
   forward_vector = np.array([math.cos(math.radians(orientation)), math.sin(math.radians(orientation))])
-  d_angle = math.degrees(math.acos(np.dot(forward_vector, target_vector) / norm_target))
-  print(np.dot(forward_vector, target_vector))
+  norm_forward = np.linalg.norm(forward_vector)
+
+  d_angle = math.acos(np.dot(forward_vector, target_vector) / (norm_target * norm_forward))
+  #d_angle = math.degrees(math.acos(np.dot(forward_vector, target_vector) / (norm_target * norm_forward)))
+  #print(d_angle)
+  if d_angle > np.pi / 2.0:
+    d_angle = d_angle - np.pi
+  
+  #print(np.dot(forward_vector, target_vector))
   return (norm_target, forward_vector, d_angle)
 
 
@@ -49,7 +57,7 @@ def main():
     'continuous_steer_range': [-0.3, 0.3],  # continuous steering angle range
     'ego_vehicle_filter': 'vehicle.lincoln*',  # filter for defining ego vehicle
     'port': 2000,  # connection port
-    'town': 'Town03',  # which town to simulate
+    'town': 'Town01',  # which town to simulate
     'task_mode': 'random',  # mode of the task, [random, roundabout (only for Town03)]
     'max_time_episode': 1000,  # maximum timesteps per episode
     'max_waypt': 12,  # maximum number of waypoints
@@ -67,33 +75,62 @@ def main():
 
 
 
-  class OnlyAcceleration(gym.ActionWrapper):
+  class AngleObjective(gym.ObservationWrapper):
     def __init__(self, env):
-        super().__init__(env)
-        if self.discrete:
-          self.action_space = spaces.Discrete(self.n_acc) # self.n_steer
-        else:
-          self.action_space = spaces.Box(np.array(params['continuous_accel_range'][0]), np.array(params['continuous_accel_range'][1]), dtype=np.float32)
+      super().__init__(env)
 
+    def observation(self, observation: _Operation) -> _Operation:
+      ego_transform = self.env.ego.get_transform()
+      norm_target, forward_vector, d_angle = compute_magnitude_angle(current_waypoint, ego_transform.location, ego_transform.rotation.yaw)
+      print(norm_target, forward_vector, d_angle)
+      return super().observation(observation)
+    
+  class AutoSteer(gym.ActionWrapper):
+    def __init__(self, env):
+      super().__init__(env)
+      if self.discrete:
+        self.action_space = spaces.Discrete(self.n_acc) # self.n_steer
+      else:
+        self.action_space = spaces.Box(np.array(params['continuous_accel_range'][0]), np.array(params['continuous_accel_range'][1]), dtype=np.float32)
+
+      self.expert = None
+      self.previous_waypoint = None
     
     def action(self, act):
+      if self.expert is None:
+        self.expert = BasicAgent(self.env.ego, 3.6)
+
+      current_waypoint = self.env.waypoints[5]
+
+      if self.previous_waypoint is None:
+        self.previous_waypoint = current_waypoint
+      elif self.previous_waypoint != current_waypoint:
+        self.expert.set_destination(current_waypoint)
+        
+      control = self.expert.run_step()
+
+      ang_v = self.ego.get_angular_velocity()
+      steer = - control.steer 
 
       if self.discrete:
           return act
       else:
-          return [act, 0.0]
+          return [act, steer]
 
-      return self.disc_to_cont[act]
+
+    def reset(self):
+      self.expert = None
+      self.previous_waypoint = None
+      return self.env.reset()
       
-
   # Set gym-carla environment
   env = gym.make('carla-v0', params=params)
-  env = OnlyAcceleration(env)
+  env = AutoSteer(env)
   obs = env.reset()
   #env.ego.set_autopilot(True)
 
   pbar = trange(1000)
-  for i in range(1000):
+  for i in pbar:
     action = 2.0 #[2.0, 0.0]
     obs,r,done,info = env.step(action)
     #pbar.set_description('Reward: ' + str(r))
