@@ -45,7 +45,7 @@ def compute_magnitude_angle(waypoint, current_location, orientation):
 def main():
   # parameters for the gym_carla environment
   params = {
-    'number_of_vehicles': 0,#100,
+    'number_of_vehicles': 10,
     'number_of_walkers': 100,
     'display_size': 256,  # screen size of bird-eye render
     'max_past_step': 1,  # the number of past steps to draw
@@ -57,7 +57,7 @@ def main():
     'continuous_steer_range': [-0.3, 0.3],  # continuous steering angle range
     'ego_vehicle_filter': 'vehicle.lincoln*',  # filter for defining ego vehicle
     'port': 2000,  # connection port
-    'town': 'Town01',  # which town to simulate
+    'town': 'Town03',  # which town to simulate
     'task_mode': 'random',  # mode of the task, [random, roundabout (only for Town03)]
     'max_time_episode': 1000,  # maximum timesteps per episode
     'max_waypt': 12,  # maximum number of waypoints
@@ -79,8 +79,10 @@ def main():
     def __init__(self, env):
       super().__init__(env)
 
-    def observation(self, observation: _Operation) -> _Operation:
+    def observation(self, observation):
       ego_transform = self.env.ego.get_transform()
+      current_waypoint = self.env.waypoints[5]
+
       norm_target, forward_vector, d_angle = compute_magnitude_angle(current_waypoint, ego_transform.location, ego_transform.rotation.yaw)
       print(norm_target, forward_vector, d_angle)
       return super().observation(observation)
@@ -100,7 +102,8 @@ def main():
       if self.expert is None:
         self.expert = BasicAgent(self.env.ego, 3.6)
 
-      current_waypoint = self.env.waypoints[5]
+
+      current_waypoint = self.env.waypoints[4]
 
       if self.previous_waypoint is None:
         self.previous_waypoint = current_waypoint
@@ -131,7 +134,7 @@ def main():
 
   pbar = trange(1000)
   for i in pbar:
-    action = 2.0 #[2.0, 0.0]
+    action = 1.5 #[2.0, 0.0]
     obs,r,done,info = env.step(action)
     #pbar.set_description('Reward: ' + str(r))
     #print(r)
